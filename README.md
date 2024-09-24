@@ -1,3 +1,4 @@
-# WXT + React
-
-This template should help get you started developing with React in WXT.
+# TODO
+- Hide posts with too many likes (100k plus)
+- Hide videos
+- Process post titles and captions and usernames with a simple checker first, only then send to AI

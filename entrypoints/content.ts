@@ -15,8 +15,8 @@ export default defineContentScript({
 				threshold: 0.9,
 			},
 			{
-				topic: "openai",
-				description: "posts that mention openai",
+π				topic: "sexual",
+				description: "posts with sexual content, innuendo, suggestive text",
 				threshold: 0.9,
 			},
 		];
@@ -167,16 +167,16 @@ export default defineContentScript({
 			while (retries < maxRetries) {
 				try {
 					const response = await fetch(
-						"http://localhost:11434/v1/chat/completions",
+						"https://api.openai.com/v1/chat/completions",
 						{
 							method: "POST",
 							headers: {
 								"Content-Type": "application/json",
-								Authorization: `Bearer ollama`,
+								Authorization: `Bearer ${apiKey}`,
 							},
 							body: JSON.stringify({
 								messages: messages,
-								model: "qwen2.5:3b-instruct",
+								model: "gpt-4o-mini",
 								temperature: 1,
 								max_tokens: 1024,
 								top_p: 1,
@@ -195,7 +195,6 @@ export default defineContentScript({
 					}
 
 					const data = await response.json();
-					console.log(data);
 					return JSON.parse(data.choices[0].message.content);
 				} catch (error) {
 					retries++;
