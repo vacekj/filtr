@@ -168,7 +168,8 @@ export default defineContentScript({
           content: tweetText,
         },
       ];
-
+      console.log('analyzing tweet');
+      console.time('analysis');
       while (retries < maxRetries) {
         try {
           const response = await fetch(
@@ -177,11 +178,11 @@ export default defineContentScript({
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${apiKey}`,
+                Authorization: `Bearer ollama`,
               },
               body: JSON.stringify({
                 messages: messages,
-                model: "llama3.2:3b-instruct-q8_0",
+                model: "llama3.2:1b-instruct-q4_0",
                 temperature: 1,
                 max_tokens: 1024,
                 top_p: 1,
@@ -200,6 +201,7 @@ export default defineContentScript({
           }
 
           const data = await response.json();
+          console.timeEnd('analysis');
           return JSON.parse(data.choices[0].message.content);
         } catch (error) {
           retries++;
