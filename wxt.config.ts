@@ -13,6 +13,6 @@ export default defineConfig({
 		host_permissions: ["https://x.com/*", "https://api.groq.com/*"],
 	},
 	runner: {
-		chromiumProfile: "/tmp/chrome-profile"
+		chromiumProfile: "/Users/vacekj/.filtrchromeprofile"
 	}
 });
