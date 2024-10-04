@@ -3,7 +3,9 @@ function App() {
   return (
     <>
       <div>
-        <textarea/></div>
+        Tweet blocker
+        <textarea/>
+      </div>
     </>
   );
 }
