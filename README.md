@@ -1,4 +1,11 @@
 # TODO
 - Hide posts with too many likes (100k plus)
-- Hide videos
+- Hide videos and photos using captions
+- hide all videos
+- nice UI for prompts
+- stats for blocked tweets
+- view blocked tweets
+- add to blocked words
+- 
 - Process post titles and captions and usernames with a simple checker first, only then send to AI
+- Generate the checklist with AI based on the prompt. use regex.
