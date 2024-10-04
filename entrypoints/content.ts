@@ -89,7 +89,6 @@ export default defineContentScript({
       const cellInnerDivs = document.querySelectorAll(
         '[data-testid="cellInnerDiv"]',
       );
-      console.log(cellInnerDivs)
       for (const div of cellInnerDivs) {
         const link = div.querySelector(`a[href*="/status/${postId}"]`);
         if (link) {
