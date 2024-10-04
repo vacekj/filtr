@@ -2,29 +2,7 @@
 export default defineContentScript({
   matches: ["*://*.x.com/*"],
   main() {
-    // Configuration object for topics
-    const topicsConfig = [
-      {
-        topic: "politics",
-        description: "posts about political subjects",
-        threshold: 0.8,
-      },
-      {
-        topic: "negativity",
-        description: "posts with overly negative sentiment",
-        threshold: 0.9,
-      },
-      {
-        topic: "sexual",
-        description: "posts with sexual content, innuendo, suggestive text",
-        threshold: 0.9,
-      },
-      {
-        topic: "openai",
-        description: "posts about artifical intelligence",
-        threshold: 0.9,
-      },
-    ];
+    const description = "politics, sexual content, immigration and rage bait"
 
     // Function to check for new posts on the page
     async function checkForNewPosts() {
@@ -53,11 +31,7 @@ export default defineContentScript({
           : "";
 
         if (postId) {
-          let analysis = await getCachedAnalysis(postId);
-          if (!analysis) {
-            analysis = await analyzeTweet(postText, apiKey);
-            await cacheAnalysis(postId, analysis);
-          }
+          const analysis = await analyzeTweet(postText, apiKey);
           applyPostVisibility(postId, analysis);
         }
       }
@@ -81,11 +55,8 @@ export default defineContentScript({
 
     // Function to apply post visibility based on analysis
     function applyPostVisibility(postId, analysis) {
-      if (typeof analysis === "object" && analysis !== null) {
-        const shouldHide = topicsConfig.some(
-          (topic) =>
-            topic.topic in analysis && analysis[topic.topic] > topic.threshold,
-        );
+      if (analysis !== null) {
+        const shouldHide = analysis.probability < 0.5;
 
         if (shouldHide) {
           const postElement = findPostElement(postId);
@@ -98,11 +69,6 @@ export default defineContentScript({
                   .querySelector('[data-testid="tweetText"]')
                   ?.innerText.trim() || "Text not found";
               console.log(`Post ${postId} hidden due to high scores:`);
-              topicsConfig.forEach((topic) => {
-                if (topic.topic in analysis) {
-                  console.log(`${topic.topic}: ${analysis[topic.topic]}`);
-                }
-              });
               console.log(`Tweet URL: ${tweetUrl}`);
               console.log(`Tweet Text: ${tweetText}`);
             }
@@ -123,7 +89,7 @@ export default defineContentScript({
       const cellInnerDivs = document.querySelectorAll(
         '[data-testid="cellInnerDiv"]',
       );
-
+      console.log(cellInnerDivs)
       for (const div of cellInnerDivs) {
         const link = div.querySelector(`a[href*="/status/${postId}"]`);
         if (link) {
@@ -152,7 +118,7 @@ export default defineContentScript({
     // Make resetCache function available in the global scope
     window.resetCache = resetCache;
 
-    console.log("To reset the cache, run resetCache() in the console.");
+    console.log("Welcome to tweet blocker");
 
     // Function to analyze a tweet using the Groq API
     async function analyzeTweet(tweetText, apiKey) {
@@ -161,15 +127,14 @@ export default defineContentScript({
       const messages = [
         {
           role: "system",
-          content: `Your task is to evaluate Tweets/X posts. Always respond in JSON. Follow this format:\n\n{\n${topicsConfig.map((topic) => `    "${topic.topic}": 0.0`).join(",\n")}\n}\n\nRate the provided post from 0.0 to 1.0 for each topic. Here are the descriptions for each topic:\n\n${topicsConfig.map((topic) => `${topic.topic}: ${topic.description}`).join("\n")}`,
+          content: `Your task is to evaluate Tweets/X posts. Always respond with JSON. The user provides the following description of what they don't like: ${description}. Answer with a probability of the user liking the tweet, in the following format: {probability: NUMBER}. The probability should be a number between 0 and 1. Example response: {probability: 0.5}`,
         },
         {
           role: "user",
-          content: tweetText,
+          content: "Tweet: " + tweetText,
         },
       ];
       console.log('analyzing tweet');
-      console.time('analysis');
       while (retries < maxRetries) {
         try {
           const response = await fetch(
@@ -182,7 +147,7 @@ export default defineContentScript({
               },
               body: JSON.stringify({
                 messages: messages,
-                model: "llama3.2:1b-instruct-q4_0",
+                model: "llama3.2:3b-instruct-q8_0",
                 temperature: 1,
                 max_tokens: 1024,
                 top_p: 1,
@@ -201,7 +166,6 @@ export default defineContentScript({
           }
 
           const data = await response.json();
-          console.timeEnd('analysis');
           return JSON.parse(data.choices[0].message.content);
         } catch (error) {
           retries++;
