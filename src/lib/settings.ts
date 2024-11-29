@@ -47,6 +47,8 @@ export function loadSettings(): Promise<Settings> {
 }
 
 export function onSettingsChanged(callback: (settings: Settings) => void): () => void {
+  let timeoutId: number | undefined;
+
   const listener = (changes: { [key: string]: chrome.storage.StorageChange }) => {
     const newSettings: Partial<Settings> = {};
     for (const [key, { newValue }] of Object.entries(changes)) {
@@ -54,9 +56,21 @@ export function onSettingsChanged(callback: (settings: Settings) => void): () =>
         newSettings[key as keyof Settings] = newValue;
       }
     }
-    callback(newSettings as Settings);
+
+    // Clear existing timeout
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+
+    // Set new timeout
+    timeoutId = window.setTimeout(() => {
+      callback(newSettings as Settings);
+    }, 2000);
   };
 
   chrome.storage.onChanged.addListener(listener);
-  return () => chrome.storage.onChanged.removeListener(listener);
+  return () => {
+    chrome.storage.onChanged.removeListener(listener);
+    if (timeoutId) clearTimeout(timeoutId);
+  };
 } 

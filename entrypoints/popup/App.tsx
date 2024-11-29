@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
+import { debounce } from "es-toolkit";
 import {
 	Box,
 	VStack,
@@ -34,10 +35,10 @@ import {
 	NumberIncrementStepper,
 	NumberDecrementStepper,
 	Link,
-} from '@chakra-ui/react';
-import { ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
+} from "@chakra-ui/react";
+import { ViewIcon, ViewOffIcon } from "@chakra-ui/icons";
 
-type EndpointType = 'local' | 'openai' | 'remote';
+type EndpointType = "local" | "openai" | "remote";
 type StorageData = {
 	IS_ACTIVE?: boolean;
 	LIKE_THRESHOLD?: number | null;
@@ -59,129 +60,182 @@ type StorageData = {
 	AI_FILTER_ENABLED?: boolean;
 };
 
+interface ToastParams {
+	title: string;
+	description: string;
+	status?: string;
+	duration?: number;
+}
+
+export const useDebounceToast = (delay = 1000) => {
+	const toast = useToast();
+	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+	const debouncedToast = useCallback(
+		({
+			title,
+			description,
+			status = "success",
+			duration = 3000,
+		}: ToastParams) => {
+			// Clear any existing timeout
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current);
+			}
+
+			// Set new timeout
+			timeoutRef.current = setTimeout(() => {
+				toast({
+					title,
+					description,
+					duration,
+				});
+			}, delay);
+		},
+		[toast, delay],
+	);
+
+	return debouncedToast;
+};
+
 function App() {
 	// Extension state
 	const [isActive, setIsActive] = useState<boolean>(true);
-	
+
 	// Filter states
 	const [likesFilterEnabled, setLikesFilterEnabled] = useState<boolean>(true);
-	const [keywordsFilterEnabled, setKeywordsFilterEnabled] = useState<boolean>(false);
+	const [keywordsFilterEnabled, setKeywordsFilterEnabled] =
+		useState<boolean>(false);
 	const [aiFilterEnabled, setAiFilterEnabled] = useState<boolean>(false);
-	
+
 	// Filter settings
-	const [likeThreshold, setLikeThreshold] = useState<string>('10000');
-	const [keywords, setKeywords] = useState<string>('');
-	const [contentPrompt, setContentPrompt] = useState<string>('');
-	
+	const [likeThreshold, setLikeThreshold] = useState<string>("10000");
+	const [keywords, setKeywords] = useState<string>("");
+	const [contentPrompt, setContentPrompt] = useState<string>("");
+
 	// AI endpoint settings
-	const [endpointType, setEndpointType] = useState<EndpointType>('local');
-	const [apiEndpoint, setApiEndpoint] = useState<string>('http://localhost:11434');
-	const [apiKey, setApiKey] = useState<string>('');
+	const [endpointType, setEndpointType] = useState<EndpointType>("local");
+	const [apiEndpoint, setApiEndpoint] = useState<string>(
+		"http://localhost:11434",
+	);
+	const [apiKey, setApiKey] = useState<string>("");
 	const [showApiKey, setShowApiKey] = useState<boolean>(false);
-	const [model, setModel] = useState<string>('gpt-4o-mini');
-	
+	const [model, setModel] = useState<string>("gpt-4o-mini");
+
 	// Stats
 	const [blockedCount, setBlockedCount] = useState<number>(0);
-	const [blockedTweets, setBlockedTweets] = useState<Array<{
-		id: string;
-		text: string;
-		timestamp: number;
-		reason: string;
-	}>>([]);
+	const [blockedTweets, setBlockedTweets] = useState<
+		Array<{
+			id: string;
+			text: string;
+			timestamp: number;
+			reason: string;
+		}>
+	>([]);
 
 	const [isError, setIsError] = useState<boolean>(false);
-	const toast = useToast();
+	const toast = useDebounceToast();
 
 	useEffect(() => {
-		chrome.storage.local.get([
-			'IS_ACTIVE',
-			'LIKE_THRESHOLD',
-			'CONTENT_PROMPT',
-			'KEYWORDS',
-			'ENDPOINT_TYPE',
-			'API_ENDPOINT',
-			'API_KEY',
-			'MODEL',
-			'BLOCKED_COUNT',
-			'BLOCKED_TWEETS',
-			'LIKES_FILTER_ENABLED',
-			'KEYWORDS_FILTER_ENABLED',
-			'AI_FILTER_ENABLED'
-		], (result: StorageData) => {
-			setIsActive(result.IS_ACTIVE ?? true);
-			setLikeThreshold(result.LIKE_THRESHOLD?.toString() || '10000');
-			setContentPrompt(result.CONTENT_PROMPT || '');
-			setKeywords(result.KEYWORDS || '');
-			setEndpointType((result.ENDPOINT_TYPE || 'local') as EndpointType);
-			setApiEndpoint(result.API_ENDPOINT || 'http://localhost:11434');
-			setApiKey(result.API_KEY || '');
-			setModel(result.MODEL || 'gpt-4o-mini');
-			setBlockedCount(result.BLOCKED_COUNT || 0);
-			setBlockedTweets(result.BLOCKED_TWEETS || []);
-			setLikesFilterEnabled(result.LIKES_FILTER_ENABLED ?? true);
-			setKeywordsFilterEnabled(result.KEYWORDS_FILTER_ENABLED || false);
-			setAiFilterEnabled(result.AI_FILTER_ENABLED || false);
+		chrome.storage.local.get(
+			[
+				"IS_ACTIVE",
+				"LIKE_THRESHOLD",
+				"CONTENT_PROMPT",
+				"KEYWORDS",
+				"ENDPOINT_TYPE",
+				"API_ENDPOINT",
+				"API_KEY",
+				"MODEL",
+				"BLOCKED_COUNT",
+				"BLOCKED_TWEETS",
+				"LIKES_FILTER_ENABLED",
+				"KEYWORDS_FILTER_ENABLED",
+				"AI_FILTER_ENABLED",
+			],
+			(result: StorageData) => {
+				setIsActive(result.IS_ACTIVE ?? true);
+				setLikeThreshold(result.LIKE_THRESHOLD?.toString() || "10000");
+				setContentPrompt(result.CONTENT_PROMPT || "");
+				setKeywords(result.KEYWORDS || "");
+				setEndpointType((result.ENDPOINT_TYPE || "local") as EndpointType);
+				setApiEndpoint(result.API_ENDPOINT || "http://localhost:11434");
+				setApiKey(result.API_KEY || "");
+				setModel(result.MODEL || "gpt-4o-mini");
+				setBlockedCount(result.BLOCKED_COUNT || 0);
+				setBlockedTweets(result.BLOCKED_TWEETS || []);
+				setLikesFilterEnabled(result.LIKES_FILTER_ENABLED ?? true);
+				setKeywordsFilterEnabled(result.KEYWORDS_FILTER_ENABLED || false);
+				setAiFilterEnabled(result.AI_FILTER_ENABLED || false);
 
-			// Ensure default settings are saved if not present
-			if (result.IS_ACTIVE === undefined || result.LIKES_FILTER_ENABLED === undefined) {
-				saveSettings({ 
-					IS_ACTIVE: true,
-					LIKES_FILTER_ENABLED: true,
-					LIKE_THRESHOLD: 10000
-				});
-			}
-		});
+				// Ensure default settings are saved if not present
+				if (
+					result.IS_ACTIVE === undefined ||
+					result.LIKES_FILTER_ENABLED === undefined
+				) {
+					saveSettings({
+						IS_ACTIVE: true,
+						LIKES_FILTER_ENABLED: true,
+						LIKE_THRESHOLD: 10000,
+					});
+				}
+			},
+		);
 	}, []);
 
 	const handleReset = (): void => {
-		chrome.storage.local.remove([
-			'IS_ACTIVE',
-			'LIKE_THRESHOLD',
-			'CONTENT_PROMPT',
-			'KEYWORDS',
-			'ENDPOINT_TYPE',
-			'API_ENDPOINT',
-			'API_KEY',
-			'MODEL',
-			'BLOCKED_COUNT',
-			'BLOCKED_TWEETS',
-			'LIKES_FILTER_ENABLED',
-			'KEYWORDS_FILTER_ENABLED',
-			'AI_FILTER_ENABLED'
-		], () => {
-			setIsActive(true);
-			setLikeThreshold('10000');
-			setContentPrompt('');
-			setKeywords('');
-			setEndpointType('local');
-			setApiEndpoint('http://localhost:11434');
-			setApiKey('');
-			setModel('gpt-4o-mini');
-			setBlockedCount(0);
-			setBlockedTweets([]);
-			setLikesFilterEnabled(true);
-			setKeywordsFilterEnabled(false);
-			setAiFilterEnabled(false);
-			toast({
-				title: "Settings reset",
-				status: "info",
-				duration: 2000,
-			});
-		});
+		chrome.storage.local.remove(
+			[
+				"IS_ACTIVE",
+				"LIKE_THRESHOLD",
+				"CONTENT_PROMPT",
+				"KEYWORDS",
+				"ENDPOINT_TYPE",
+				"API_ENDPOINT",
+				"API_KEY",
+				"MODEL",
+				"BLOCKED_COUNT",
+				"BLOCKED_TWEETS",
+				"LIKES_FILTER_ENABLED",
+				"KEYWORDS_FILTER_ENABLED",
+				"AI_FILTER_ENABLED",
+			],
+			() => {
+				setIsActive(true);
+				setLikeThreshold("10000");
+				setContentPrompt("");
+				setKeywords("");
+				setEndpointType("local");
+				setApiEndpoint("http://localhost:11434");
+				setApiKey("");
+				setModel("gpt-4o-mini");
+				setBlockedCount(0);
+				setBlockedTweets([]);
+				setLikesFilterEnabled(true);
+				setKeywordsFilterEnabled(false);
+				setAiFilterEnabled(false);
+				toast({
+					title: "Settings reset",
+					description: "All settings have been reset to default",
+					status: "info",
+					duration: 2000,
+				});
+			},
+		);
 	};
 
-	const saveSettings = (updates: StorageData): void => {
-		chrome.storage.local.set(updates, () => {
-			toast({
-				title: "Settings saved",
-				status: "success",
-				duration: 2000,
-			});
+	const saveSettings = useCallback((updates: StorageData) => {
+		chrome.storage.local.set(updates);
+		toast({
+			title: "Settings saved",
+			description: "Your changes have been saved",
+			status: "success",
+			duration: 2000,
 		});
-	};
+	}, []);
 
 	return (
-		<Box minW='500px' w='max-content' p={6} maxW="md" mx="auto">
+		<Box minW="500px" w="max-content" p={6} maxW="md" mx="auto">
 			<VStack spacing={6} align="stretch">
 				{/* Header */}
 				<Box pb={4} borderBottomWidth={1}>
@@ -191,9 +245,13 @@ function App() {
 				</Box>
 
 				<Box>
-					<FormControl display="flex" alignItems="center" justifyContent="space-between">
+					<FormControl
+						display="flex"
+						alignItems="center"
+						justifyContent="space-between"
+					>
 						<FormLabel htmlFor="active-switch" mb={0}>
-							{isActive ? 'Active' : 'Inactive'}
+							{isActive ? "Active" : "Inactive"}
 						</FormLabel>
 						<Switch
 							id="active-switch"
@@ -300,12 +358,16 @@ function App() {
 									onChange={(e) => {
 										const value = e.target.value as EndpointType;
 										setEndpointType(value);
-										let defaultEndpoint = value === 'local' ? 'http://localhost:11434' : 
-															value === 'openai' ? 'https://api.openai.com/v1' : '';
+										let defaultEndpoint =
+											value === "local"
+												? "http://localhost:11434"
+												: value === "openai"
+													? "https://api.openai.com/v1"
+													: "";
 										setApiEndpoint(defaultEndpoint);
-										saveSettings({ 
+										saveSettings({
 											ENDPOINT_TYPE: value,
-											API_ENDPOINT: defaultEndpoint
+											API_ENDPOINT: defaultEndpoint,
 										});
 									}}
 								>
@@ -327,12 +389,12 @@ function App() {
 								/>
 							</FormControl>
 
-							{endpointType !== 'local' && (
+							{endpointType !== "local" && (
 								<FormControl mt={4}>
 									<FormLabel>API Key</FormLabel>
 									<InputGroup>
 										<Input
-											type={showApiKey ? 'text' : 'password'}
+											type={showApiKey ? "text" : "password"}
 											value={apiKey}
 											onChange={(e) => {
 												setApiKey(e.target.value);
@@ -342,7 +404,9 @@ function App() {
 										/>
 										<InputRightElement>
 											<IconButton
-												aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+												aria-label={
+													showApiKey ? "Hide API key" : "Show API key"
+												}
 												icon={showApiKey ? <ViewIcon /> : <ViewOffIcon />}
 												onClick={() => setShowApiKey(!showApiKey)}
 												variant="ghost"
@@ -353,7 +417,7 @@ function App() {
 								</FormControl>
 							)}
 
-							{endpointType === 'remote' && (
+							{endpointType === "remote" && (
 								<FormControl mt={4}>
 									<FormLabel>API Endpoint URL</FormLabel>
 									<Input
@@ -408,22 +472,28 @@ function App() {
 							{blockedTweets.length > 0 ? (
 								<VStack align="stretch" spacing={4}>
 									{blockedTweets.map((tweet) => (
-										<Box key={tweet.id} p={2} borderWidth="1px" borderRadius="md">
+										<Box
+											key={tweet.id}
+											p={2}
+											borderWidth="1px"
+											borderRadius="md"
+										>
 											<Link
 												href={`https://twitter.com/i/web/status/${tweet.id}`}
 												isExternal
 												color="blue.500"
-												_hover={{ textDecoration: 'none' }}
+												_hover={{ textDecoration: "none" }}
 											>
 												<Box
 													p={2}
 													borderRadius="md"
 													transition="background 0.2s"
-													_hover={{ bg: 'gray.50' }}
+													_hover={{ bg: "gray.50" }}
 												>
 													<Text fontSize="sm">{tweet.text}</Text>
 													<Text fontSize="xs" color="gray.500">
-														Blocked: {new Date(tweet.timestamp).toLocaleString()}
+														Blocked:{" "}
+														{new Date(tweet.timestamp).toLocaleString()}
 													</Text>
 													<Text fontSize="xs" color="gray.500">
 														Reason: {tweet.reason}
@@ -439,9 +509,9 @@ function App() {
 										onClick={() => {
 											setBlockedTweets([]);
 											setBlockedCount(0);
-											saveSettings({ 
+											saveSettings({
 												BLOCKED_TWEETS: [],
-												BLOCKED_COUNT: 0
+												BLOCKED_COUNT: 0,
 											});
 										}}
 									>
@@ -470,7 +540,10 @@ function App() {
 				{/* Footer */}
 				<Box pt={6} borderTopWidth={1}>
 					<Text fontSize="sm" color="gray.500" textAlign="center">
-						© forever Atris · <Link href="https://atris.cc" isExternal color="blue.500">atris.cc</Link>
+						© forever Atris ·{" "}
+						<Link href="https://atris.cc" isExternal color="blue.500">
+							atris.cc
+						</Link>
 					</Text>
 				</Box>
 
