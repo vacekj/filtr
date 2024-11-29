@@ -78,7 +78,7 @@ function App() {
 	const [apiEndpoint, setApiEndpoint] = useState<string>('http://localhost:11434');
 	const [apiKey, setApiKey] = useState<string>('');
 	const [showApiKey, setShowApiKey] = useState<boolean>(false);
-	const [model, setModel] = useState<string>('gpt-4-mini');
+	const [model, setModel] = useState<string>('gpt-4o-mini');
 	
 	// Stats
 	const [blockedCount, setBlockedCount] = useState<number>(0);
@@ -115,7 +115,7 @@ function App() {
 			setEndpointType((result.ENDPOINT_TYPE || 'local') as EndpointType);
 			setApiEndpoint(result.API_ENDPOINT || 'http://localhost:11434');
 			setApiKey(result.API_KEY || '');
-			setModel(result.MODEL || 'gpt-4-mini');
+			setModel(result.MODEL || 'gpt-4o-mini');
 			setBlockedCount(result.BLOCKED_COUNT || 0);
 			setBlockedTweets(result.BLOCKED_TWEETS || []);
 			setLikesFilterEnabled(result.LIKES_FILTER_ENABLED ?? true);
@@ -156,7 +156,7 @@ function App() {
 			setEndpointType('local');
 			setApiEndpoint('http://localhost:11434');
 			setApiKey('');
-			setModel('gpt-4-mini');
+			setModel('gpt-4o-mini');
 			setBlockedCount(0);
 			setBlockedTweets([]);
 			setLikesFilterEnabled(true);

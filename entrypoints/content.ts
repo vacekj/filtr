@@ -88,7 +88,7 @@ export default defineContentScript({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              model: settings.MODEL || 'gpt-4-mini',
+              model: settings.MODEL || 'gpt-4o-mini',
               prompt: `Based on this filtering criteria: "${settings.CONTENT_PROMPT}", should this tweet be hidden? Reply with just "yes" or "no".\n\nTweet: "${text}"`,
               stream: false
             })
@@ -104,7 +104,7 @@ export default defineContentScript({
               'Authorization': `Bearer ${settings.API_KEY}`
             },
             body: JSON.stringify({
-              model: 'gpt-3.5-turbo',
+              model: settings.MODEL || 'gpt-3.5-turbo',
               messages: [
                 {
                   role: 'system',
@@ -131,7 +131,7 @@ export default defineContentScript({
               ...(settings.API_KEY && { 'Authorization': `Bearer ${settings.API_KEY}` })
             },
             body: JSON.stringify({
-              model: settings.MODEL || 'gpt-4-mini',
+              model: settings.MODEL || 'gpt-4o-mini',
               messages: [
                 {
                   role: 'system',
