@@ -315,6 +315,18 @@ function App() {
 								</Select>
 							</FormControl>
 
+							<FormControl mt={4}>
+								<FormLabel>Model</FormLabel>
+								<Input
+									value={model}
+									onChange={(e) => {
+										setModel(e.target.value);
+										saveSettings({ MODEL: e.target.value });
+									}}
+									placeholder="Enter model name"
+								/>
+							</FormControl>
+
 							{endpointType !== 'local' && (
 								<FormControl mt={4}>
 									<FormLabel>API Key</FormLabel>
@@ -363,7 +375,7 @@ function App() {
 										setContentPrompt(e.target.value);
 										saveSettings({ CONTENT_PROMPT: e.target.value });
 									}}
-									placeholder="Describe what content to filter out"
+									placeholder="Describe what content to filter..."
 									rows={4}
 								/>
 							</FormControl>
