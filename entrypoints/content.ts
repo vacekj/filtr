@@ -9,6 +9,10 @@ interface Settings {
     pattern: string;
     description: string;
   }>;
+  ENDPOINT_TYPE: string;
+  MODEL: string;
+  API_KEY: string;
+  API_ENDPOINT: string;
 }
 
 export default defineContentScript({
@@ -21,7 +25,11 @@ export default defineContentScript({
       LLM_BYPASS: false,
       HIDE_VIDEOS: false,
       HIDE_PHOTOS: false,
-      GENERATED_CHECKLIST: []
+      GENERATED_CHECKLIST: [],
+      ENDPOINT_TYPE: '',
+      MODEL: '',
+      API_KEY: '',
+      API_ENDPOINT: ''
     };
 
     console.log('Content script loaded');
@@ -35,7 +43,11 @@ export default defineContentScript({
         'LLM_BYPASS',
         'HIDE_VIDEOS',
         'HIDE_PHOTOS',
-        'GENERATED_CHECKLIST'
+        'GENERATED_CHECKLIST',
+        'ENDPOINT_TYPE',
+        'MODEL',
+        'API_KEY',
+        'API_ENDPOINT'
       ], (result) => {
         settings = { ...settings, ...result };
         console.log('Settings loaded:', settings);
@@ -71,18 +83,71 @@ export default defineContentScript({
 
     async function checkTweetContent(text: string): Promise<boolean> {
       try {
-        const response = await fetch('http://localhost:11434/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'gpt-4-mini',
-            prompt: `Based on this filtering criteria: "${settings.CONTENT_PROMPT}", should this tweet be hidden? Reply with just "yes" or "no".\n\nTweet: "${text}"`,
-            stream: false
-          })
-        });
+        if (settings.ENDPOINT_TYPE === 'local') {
+          const response = await fetch('http://localhost:11434/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: settings.MODEL || 'gpt-4-mini',
+              prompt: `Based on this filtering criteria: "${settings.CONTENT_PROMPT}", should this tweet be hidden? Reply with just "yes" or "no".\n\nTweet: "${text}"`,
+              stream: false
+            })
+          });
 
-        const data = await response.json();
-        return data.response.toLowerCase().includes('yes');
+          const data = await response.json();
+          return data.response.toLowerCase().includes('yes');
+        } else if (settings.ENDPOINT_TYPE === 'openai') {
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${settings.API_KEY}`
+            },
+            body: JSON.stringify({
+              model: 'gpt-3.5-turbo',
+              messages: [
+                {
+                  role: 'system',
+                  content: 'You are a content filter. Reply with just "yes" or "no".'
+                },
+                {
+                  role: 'user',
+                  content: `Based on this filtering criteria: "${settings.CONTENT_PROMPT}", should this tweet be hidden?\n\nTweet: "${text}"`
+                }
+              ],
+              temperature: 0.7,
+              max_tokens: 1
+            })
+          });
+
+          const data = await response.json();
+          return data.choices[0].message.content.toLowerCase().includes('yes');
+        } else {
+          // Custom endpoint
+          const response = await fetch(settings.API_ENDPOINT, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(settings.API_KEY && { 'Authorization': `Bearer ${settings.API_KEY}` })
+            },
+            body: JSON.stringify({
+              model: settings.MODEL || 'gpt-4-mini',
+              messages: [
+                {
+                  role: 'system',
+                  content: 'You are a content filter. Reply with just "yes" or "no".'
+                },
+                {
+                  role: 'user',
+                  content: `Based on this filtering criteria: "${settings.CONTENT_PROMPT}", should this tweet be hidden?\n\nTweet: "${text}"`
+                }
+              ]
+            })
+          });
+
+          const data = await response.json();
+          return data.choices?.[0]?.message?.content?.toLowerCase().includes('yes') || false;
+        }
       } catch (e) {
         console.error('Failed to check tweet content:', e);
         return false;

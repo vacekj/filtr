@@ -22,47 +22,8 @@ export default defineBackground({
       console.log('Initialized blocked tweets:', { blockedCount, tweetsLength: blockedTweets.length });
     });
 
-    async function generatePatternsFromPrompt(prompt: string): Promise<GeneratedPattern[]> {
-      const systemPrompt = `Given this content filtering prompt, generate a list of regex patterns to help filter content. 
-      Return a JSON array where each item has 'pattern' (the regex pattern) and 'description' (what it matches). 
-      Make patterns precise and practical. Example format:
-      [{"pattern": "\\b(hate|angry|mad)\\b", "description": "Matches negative emotions"}]`;
-
-      try {
-        const response = await fetch('http://localhost:11434/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'gpt-4-mini',
-            prompt: `${systemPrompt}\n\nUser's filtering prompt: ${prompt}`,
-            stream: false
-          })
-        });
-
-        const data = await response.json();
-        try {
-          const patterns = JSON.parse(data.response) as GeneratedPattern[];
-          return patterns;
-        } catch (e) {
-          console.error('Failed to parse patterns:', e);
-          return [];
-        }
-      } catch (e) {
-        console.error('Failed to generate patterns:', e);
-        return [];
-      }
-    }
-
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('Received message:', message);
-
-      if (message.type === 'GENERATE_CHECKLIST') {
-        generatePatternsFromPrompt(message.prompt)
-          .then(patterns => {
-            sendResponse({ checklist: patterns });
-          });
-        return true;
-      }
 
       if (message.type === 'TWEET_BLOCKED') {
         const newTweet: BlockedTweet = {

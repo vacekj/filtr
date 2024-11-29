@@ -33,6 +33,7 @@ import {
 	NumberInputStepper,
 	NumberIncrementStepper,
 	NumberDecrementStepper,
+	Link,
 } from '@chakra-ui/react';
 import { ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
 
@@ -46,8 +47,6 @@ type StorageData = {
 	API_ENDPOINT?: string;
 	API_KEY?: string;
 	MODEL?: string;
-	HIDE_VIDEOS?: boolean;
-	HIDE_PHOTOS?: boolean;
 	BLOCKED_COUNT?: number;
 	BLOCKED_TWEETS?: Array<{
 		id: string;
@@ -62,10 +61,10 @@ type StorageData = {
 
 function App() {
 	// Extension state
-	const [isActive, setIsActive] = useState<boolean>(false);
+	const [isActive, setIsActive] = useState<boolean>(true);
 	
 	// Filter states
-	const [likesFilterEnabled, setLikesFilterEnabled] = useState<boolean>(false);
+	const [likesFilterEnabled, setLikesFilterEnabled] = useState<boolean>(true);
 	const [keywordsFilterEnabled, setKeywordsFilterEnabled] = useState<boolean>(false);
 	const [aiFilterEnabled, setAiFilterEnabled] = useState<boolean>(false);
 	
@@ -73,10 +72,6 @@ function App() {
 	const [likeThreshold, setLikeThreshold] = useState<string>('10000');
 	const [keywords, setKeywords] = useState<string>('');
 	const [contentPrompt, setContentPrompt] = useState<string>('');
-	
-	// Media filters
-	const [hideVideos, setHideVideos] = useState<boolean>(false);
-	const [hidePhotos, setHidePhotos] = useState<boolean>(false);
 	
 	// AI endpoint settings
 	const [endpointType, setEndpointType] = useState<EndpointType>('local');
@@ -107,15 +102,13 @@ function App() {
 			'API_ENDPOINT',
 			'API_KEY',
 			'MODEL',
-			'HIDE_VIDEOS',
-			'HIDE_PHOTOS',
 			'BLOCKED_COUNT',
 			'BLOCKED_TWEETS',
 			'LIKES_FILTER_ENABLED',
 			'KEYWORDS_FILTER_ENABLED',
 			'AI_FILTER_ENABLED'
 		], (result: StorageData) => {
-			setIsActive(result.IS_ACTIVE || false);
+			setIsActive(result.IS_ACTIVE ?? true);
 			setLikeThreshold(result.LIKE_THRESHOLD?.toString() || '10000');
 			setContentPrompt(result.CONTENT_PROMPT || '');
 			setKeywords(result.KEYWORDS || '');
@@ -123,44 +116,22 @@ function App() {
 			setApiEndpoint(result.API_ENDPOINT || 'http://localhost:11434');
 			setApiKey(result.API_KEY || '');
 			setModel(result.MODEL || 'gpt-4-mini');
-			setHideVideos(result.HIDE_VIDEOS || false);
-			setHidePhotos(result.HIDE_PHOTOS || false);
 			setBlockedCount(result.BLOCKED_COUNT || 0);
 			setBlockedTweets(result.BLOCKED_TWEETS || []);
-			setLikesFilterEnabled(result.LIKES_FILTER_ENABLED || false);
+			setLikesFilterEnabled(result.LIKES_FILTER_ENABLED ?? true);
 			setKeywordsFilterEnabled(result.KEYWORDS_FILTER_ENABLED || false);
 			setAiFilterEnabled(result.AI_FILTER_ENABLED || false);
-		});
-	}, []);
 
-	// Listen for storage changes
-	useEffect(() => {
-		const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
-			for (const [key, { newValue }] of Object.entries(changes)) {
-				switch (key) {
-					case 'BLOCKED_COUNT':
-						setBlockedCount(newValue || 0);
-						break;
-					case 'BLOCKED_TWEETS':
-						setBlockedTweets(newValue || []);
-						break;
-				}
+			// Ensure default settings are saved if not present
+			if (result.IS_ACTIVE === undefined || result.LIKES_FILTER_ENABLED === undefined) {
+				saveSettings({ 
+					IS_ACTIVE: true,
+					LIKES_FILTER_ENABLED: true,
+					LIKE_THRESHOLD: 10000
+				});
 			}
-		};
-
-		chrome.storage.onChanged.addListener(handleStorageChange);
-		return () => chrome.storage.onChanged.removeListener(handleStorageChange);
-	}, []);
-
-	const saveSettings = (updates: StorageData): void => {
-		chrome.storage.local.set(updates, () => {
-			toast({
-				title: "Settings saved",
-				status: "success",
-				duration: 2000,
-			});
 		});
-	};
+	}, []);
 
 	const handleReset = (): void => {
 		chrome.storage.local.remove([
@@ -172,15 +143,13 @@ function App() {
 			'API_ENDPOINT',
 			'API_KEY',
 			'MODEL',
-			'HIDE_VIDEOS',
-			'HIDE_PHOTOS',
 			'BLOCKED_COUNT',
 			'BLOCKED_TWEETS',
 			'LIKES_FILTER_ENABLED',
 			'KEYWORDS_FILTER_ENABLED',
 			'AI_FILTER_ENABLED'
 		], () => {
-			setIsActive(false);
+			setIsActive(true);
 			setLikeThreshold('10000');
 			setContentPrompt('');
 			setKeywords('');
@@ -188,11 +157,9 @@ function App() {
 			setApiEndpoint('http://localhost:11434');
 			setApiKey('');
 			setModel('gpt-4-mini');
-			setHideVideos(false);
-			setHidePhotos(false);
 			setBlockedCount(0);
 			setBlockedTweets([]);
-			setLikesFilterEnabled(false);
+			setLikesFilterEnabled(true);
 			setKeywordsFilterEnabled(false);
 			setAiFilterEnabled(false);
 			toast({
@@ -203,9 +170,26 @@ function App() {
 		});
 	};
 
+	const saveSettings = (updates: StorageData): void => {
+		chrome.storage.local.set(updates, () => {
+			toast({
+				title: "Settings saved",
+				status: "success",
+				duration: 2000,
+			});
+		});
+	};
+
 	return (
-		<Box minW='max-content' p={6} maxW="md" mx="auto">
+		<Box minW='500px' w='max-content' p={6} maxW="md" mx="auto">
 			<VStack spacing={6} align="stretch">
+				{/* Header */}
+				<Box pb={4} borderBottomWidth={1}>
+					<Text fontSize="2xl" fontWeight="bold" textAlign="center">
+						Filtr
+					</Text>
+				</Box>
+
 				<Box>
 					<FormControl display="flex" alignItems="center" justifyContent="space-between">
 						<FormLabel htmlFor="active-switch" mb={0}>
@@ -379,39 +363,12 @@ function App() {
 										setContentPrompt(e.target.value);
 										saveSettings({ CONTENT_PROMPT: e.target.value });
 									}}
-									placeholder="Describe what content to filter..."
+									placeholder="Describe what content to filter out"
 									rows={4}
 								/>
 							</FormControl>
 						</>
 					)}
-				</FormControl>
-
-				<Divider />
-
-				{/* Media Filters */}
-				<FormControl>
-					<FormLabel>Media Filters</FormLabel>
-					<Stack spacing={2}>
-						<Checkbox
-							isChecked={hideVideos}
-							onChange={(e) => {
-								setHideVideos(e.target.checked);
-								saveSettings({ HIDE_VIDEOS: e.target.checked });
-							}}
-						>
-							Hide all videos
-						</Checkbox>
-						<Checkbox
-							isChecked={hidePhotos}
-							onChange={(e) => {
-								setHidePhotos(e.target.checked);
-								saveSettings({ HIDE_PHOTOS: e.target.checked });
-							}}
-						>
-							Hide photos with captions
-						</Checkbox>
-					</Stack>
 				</FormControl>
 
 				<Divider />
@@ -440,13 +397,27 @@ function App() {
 								<VStack align="stretch" spacing={4}>
 									{blockedTweets.map((tweet) => (
 										<Box key={tweet.id} p={2} borderWidth="1px" borderRadius="md">
-											<Text fontSize="sm">{tweet.text}</Text>
-											<Text fontSize="xs" color="gray.500">
-												Blocked: {new Date(tweet.timestamp).toLocaleString()}
-											</Text>
-											<Text fontSize="xs" color="gray.500">
-												Reason: {tweet.reason}
-											</Text>
+											<Link
+												href={`https://twitter.com/i/web/status/${tweet.id}`}
+												isExternal
+												color="blue.500"
+												_hover={{ textDecoration: 'none' }}
+											>
+												<Box
+													p={2}
+													borderRadius="md"
+													transition="background 0.2s"
+													_hover={{ bg: 'gray.50' }}
+												>
+													<Text fontSize="sm">{tweet.text}</Text>
+													<Text fontSize="xs" color="gray.500">
+														Blocked: {new Date(tweet.timestamp).toLocaleString()}
+													</Text>
+													<Text fontSize="xs" color="gray.500">
+														Reason: {tweet.reason}
+													</Text>
+												</Box>
+											</Link>
 										</Box>
 									))}
 									<Button
@@ -482,6 +453,13 @@ function App() {
 					>
 						Reset Settings
 					</Button>
+				</Box>
+
+				{/* Footer */}
+				<Box pt={6} borderTopWidth={1}>
+					<Text fontSize="sm" color="gray.500" textAlign="center">
+						© forever Atris · <Link href="https://atris.cc" isExternal color="blue.500">atris.cc</Link>
+					</Text>
 				</Box>
 
 				{isError && (
