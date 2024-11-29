@@ -1,225 +1,224 @@
-// @ts-nocheck
-export default defineContentScript({
-  matches: ["*://*.x.com/*"],
-  main() {
-    const description = "politics, sexual content, immigration and rage bait"
+interface Settings {
+  IS_ACTIVE: boolean;
+  LIKE_THRESHOLD: number | null;
+  CONTENT_PROMPT: string;
+  LLM_BYPASS: boolean;
+  HIDE_VIDEOS: boolean;
+  HIDE_PHOTOS: boolean;
+  GENERATED_CHECKLIST: Array<{
+    pattern: string;
+    description: string;
+  }>;
+}
 
-    // Function to check for new posts on the page
-    async function checkForNewPosts() {
-      // Early check for API key
-      const apiKey = await getGroqApiKey();
-      if (!apiKey) {
-        console.error("No API key provided. Aborting analysis.");
+export default defineContentScript({
+  matches: ["https://twitter.com/*", "https://x.com/*"],
+  main() {
+    let settings: Settings = {
+      IS_ACTIVE: false,
+      LIKE_THRESHOLD: null,
+      CONTENT_PROMPT: '',
+      LLM_BYPASS: false,
+      HIDE_VIDEOS: false,
+      HIDE_PHOTOS: false,
+      GENERATED_CHECKLIST: []
+    };
+
+    console.log('Content script loaded');
+
+    // Load settings
+    function loadSettings() {
+      chrome.storage.local.get([
+        'IS_ACTIVE',
+        'LIKE_THRESHOLD',
+        'CONTENT_PROMPT',
+        'LLM_BYPASS',
+        'HIDE_VIDEOS',
+        'HIDE_PHOTOS',
+        'GENERATED_CHECKLIST'
+      ], (result) => {
+        settings = { ...settings, ...result };
+        console.log('Settings loaded:', settings);
+      });
+    }
+
+    // Listen for settings changes
+    chrome.storage.onChanged.addListener((changes) => {
+      for (const [key, { newValue }] of Object.entries(changes)) {
+        if (key in settings) {
+          (settings as any)[key] = newValue;
+        }
+      }
+      console.log('Settings updated:', settings);
+    });
+
+    // Initial load
+    loadSettings();
+
+    function checkTweetAgainstPatterns(text: string): boolean {
+      if (!settings.GENERATED_CHECKLIST.length) return false;
+      
+      return settings.GENERATED_CHECKLIST.some(({ pattern }) => {
+        try {
+          const regex = new RegExp(pattern, 'i');
+          return regex.test(text);
+        } catch (e) {
+          console.error('Invalid regex pattern:', pattern, e);
+          return false;
+        }
+      });
+    }
+
+    async function checkTweetContent(text: string): Promise<boolean> {
+      try {
+        const response = await fetch('http://localhost:11434/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'gpt-4-mini',
+            prompt: `Based on this filtering criteria: "${settings.CONTENT_PROMPT}", should this tweet be hidden? Reply with just "yes" or "no".\n\nTweet: "${text}"`,
+            stream: false
+          })
+        });
+
+        const data = await response.json();
+        return data.response.toLowerCase().includes('yes');
+      } catch (e) {
+        console.error('Failed to check tweet content:', e);
+        return false;
+      }
+    }
+
+    function shouldHideTweet(tweet: HTMLElement): Promise<{ should: boolean; reason: string }> {
+      // Get tweet text and metadata
+      const tweetText = tweet.querySelector('[data-testid="tweetText"]')?.textContent || '';
+      const likeButton = tweet.querySelector('[data-testid="like"]');
+      const likeCount = parseInt(likeButton?.getAttribute('aria-label')?.match(/\d+/)?.[0] || '0', 10);
+      const hasVideo = tweet.querySelector('video, [data-testid="videoPlayer"]') !== null;
+      const hasPhoto = tweet.querySelector('img[alt="Image"], [data-testid="image-container"]') !== null;
+      const photoCaption = hasPhoto ? tweet.querySelector('img[alt="Image"]')?.getAttribute('alt') || '' : '';
+
+      console.log('Checking tweet:', {
+        text: tweetText,
+        likeCount,
+        hasVideo,
+        hasPhoto,
+        photoCaption,
+        settings
+      });
+
+      // Quick checks first
+      if (settings.HIDE_VIDEOS && hasVideo) {
+        return Promise.resolve({ should: true, reason: 'Contains video' });
+      }
+
+      if (settings.HIDE_PHOTOS && hasPhoto && photoCaption) {
+        return Promise.resolve({ should: true, reason: 'Contains photo with caption' });
+      }
+
+      if (settings.LIKE_THRESHOLD && likeCount > settings.LIKE_THRESHOLD) {
+        return Promise.resolve({ should: true, reason: `Like count (${likeCount}) exceeds threshold` });
+      }
+
+      // Check against regex patterns first
+      if (checkTweetAgainstPatterns(tweetText)) {
+        return Promise.resolve({ should: true, reason: 'Matched regex pattern' });
+      }
+
+      // If not bypassing LLM and content prompt exists, check with AI
+      if (!settings.LLM_BYPASS && settings.CONTENT_PROMPT) {
+        return checkTweetContent(tweetText)
+          .then(should => ({ should, reason: 'AI content filter' }));
+      }
+
+      return Promise.resolve({ should: false, reason: '' });
+    }
+
+    function processTweet(tweet: Element) {
+      if (!settings.IS_ACTIVE || !(tweet instanceof HTMLElement)) {
+        console.log('Skipping tweet processing:', { isActive: settings.IS_ACTIVE, isHtmlElement: tweet instanceof HTMLElement });
         return;
       }
 
-      const posts = document.querySelectorAll('[data-testid="cellInnerDiv"]');
-
-      for (const post of posts) {
-        const tweetArticle = post.querySelector('article[data-testid="tweet"]');
-        if (!tweetArticle) continue;
-
-        const postId = Array.from(tweetArticle.querySelectorAll("a"))
-          .find((a) => a.href.includes("/status/"))
-          ?.href.split("/")
-          .find((part, index, array) => array[index - 1] === "status");
-        const postTextElement = tweetArticle.querySelector(
-          '[data-testid="tweetText"]',
-        );
-        const postText = postTextElement
-          ? postTextElement.innerText.trim()
-          : "";
-
-        if (postId) {
-          const analysis = await analyzeTweet(postText, apiKey);
-          applyPostVisibility(postId, analysis);
-        }
-      }
-    }
-
-    // Function to get cached analysis
-    async function getCachedAnalysis(postId) {
-      return new Promise((resolve) => {
-        chrome.storage.local.get([`analysis_${postId}`], (result) => {
-          resolve(result[`analysis_${postId}`] || null);
-        });
-      });
-    }
-
-    // Function to cache analysis
-    async function cacheAnalysis(postId, analysis) {
-      return new Promise((resolve) => {
-        chrome.storage.local.set({[`analysis_${postId}`]: analysis}, resolve);
-      });
-    }
-
-    // Function to apply post visibility based on analysis
-    function applyPostVisibility(postId, analysis) {
-      if (analysis !== null) {
-        const shouldHide = analysis.probability < 0.5;
-
-        if (shouldHide) {
-          const postElement = findPostElement(postId);
-          if (postElement) {
-            if (postElement.style.display !== "none") {
-              postElement.style.display = "none";
-              const tweetUrl = `https://x.com/user/status/${postId}`;
-              const tweetText =
-                postElement
-                  .querySelector('[data-testid="tweetText"]')
-                  ?.innerText.trim() || "Text not found";
-              console.log(`Post ${postId} hidden due to high scores:`);
-              console.log(`Tweet URL: ${tweetUrl}`);
-              console.log(`Tweet Text: ${tweetText}`);
-            }
-          } else {
-            console.log(`Could not find element for post ${postId} to hide`);
-          }
-        }
-      } else {
-        console.log(`Skipping post ${postId} due to invalid analysis result`);
-      }
-    }
-
-    // Function to find the div element containing a specific post ID
-    function findPostElement(postId) {
-      if (typeof postId !== "string") {
-        throw new Error("postId must be a string");
-      }
-      const cellInnerDivs = document.querySelectorAll(
-        '[data-testid="cellInnerDiv"]',
-      );
-      for (const div of cellInnerDivs) {
-        const link = div.querySelector(`a[href*="/status/${postId}"]`);
-        if (link) {
-          return div;
-        }
+      const tweetId = tweet.getAttribute('data-tweet-id') || tweet.querySelector('time')?.parentElement?.getAttribute('href')?.split('/').pop() || '';
+      
+      if (!tweetId) {
+        console.log('No tweet ID found');
+        return;
       }
 
-      return null; // Return null if no matching element is found
-    }
-
-    window.findPostElement = findPostElement;
-
-    // Function to reset the cache (seenPostIds and analysis results)
-    function resetCache() {
-      chrome.storage.local.get(null, (items) => {
-        const allKeys = Object.keys(items);
-        const analysisKeys = allKeys.filter((key) =>
-          key.startsWith("analysis_"),
-        );
-        chrome.storage.local.remove(analysisKeys, () => {
-          console.log("Cache (analysis results) has been reset.");
-        });
-      });
-    }
-
-    // Make resetCache function available in the global scope
-    window.resetCache = resetCache;
-
-    console.log("Welcome to tweet blocker");
-
-    // Function to analyze a tweet using the Groq API
-    async function analyzeTweet(tweetText, apiKey) {
-      let retries = 0;
-      const maxRetries = 3;
-      const messages = [
-        {
-          role: "system",
-          content: `Your task is to evaluate Tweets/X posts. Always respond with JSON. The user provides the following description of what they don't like: ${description}. Answer with a probability of the user liking the tweet, in the following format: {probability: NUMBER}. The probability should be a number between 0 and 1. Example response: {probability: 0.5}`,
-        },
-        {
-          role: "user",
-          content: "Tweet: " + tweetText,
-        },
-      ];
-      console.log('analyzing tweet');
-      while (retries < maxRetries) {
-        try {
-          const response = await fetch(
-            "http://localhost:11434/v1/chat/completions",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ollama`,
-              },
-              body: JSON.stringify({
-                messages: messages,
-                model: "llama3.2:3b-instruct-q8_0",
-                temperature: 1,
-                max_tokens: 1024,
-                top_p: 1,
-                stream: false,
-                response_format: {
-                  type: "json_object",
-                },
-                stop: null,
-              }),
+      console.log('Processing tweet:', { id: tweetId });
+      
+      shouldHideTweet(tweet).then(({ should, reason }) => {
+        if (should) {
+          console.log('Hiding tweet:', { id: tweetId, reason });
+          tweet.style.display = 'none';
+          
+          // Notify background script
+          chrome.runtime.sendMessage({
+            type: 'TWEET_BLOCKED',
+            tweet: {
+              id: tweetId,
+              text: tweet.textContent || '',
             },
-          );
-
-          if (response.status === 400) {
-            retries++;
-            continue;
-          }
-
-          const data = await response.json();
-          return JSON.parse(data.choices[0].message.content);
-        } catch (error) {
-          retries++;
-          if (retries === maxRetries) {
-            console.error("Max retries reached. Returning empty object.");
-            return {};
-          }
-        }
-      }
-
-      return {};
-    }
-
-    // Function to get or set the Groq API key
-    async function getGroqApiKey() {
-      return new Promise((resolve) => {
-        chrome.storage.local.get(["GROQ_API_KEY"], (result) => {
-          if (result.GROQ_API_KEY) {
-            resolve(result.GROQ_API_KEY);
-          } else {
-            const apiKey = prompt("Please enter your Groq API key:");
-            if (apiKey) {
-              chrome.storage.local.set({GROQ_API_KEY: apiKey}, () => {
-                resolve(apiKey);
-              });
+            reason
+          }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.error('Error saving blocked tweet:', chrome.runtime.lastError);
+            } else if (!response?.success) {
+              console.error('Failed to save blocked tweet');
             } else {
-              resolve(null);
+              console.log('Successfully saved blocked tweet');
             }
-          }
-        });
+          });
+        } else {
+          console.log('Tweet passed filters:', { id: tweetId });
+        }
       });
     }
 
-    // Debounce function to limit how often the scroll event fires
-    function debounce(func, delay) {
-      let timeoutId;
-      return function (...args) {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => func.apply(this, args), delay);
-      };
+    function processExistingTweets() {
+      console.log('Processing existing tweets');
+      const tweets = document.querySelectorAll('article[data-testid="tweet"], div[data-testid="cellInnerDiv"] article');
+      console.log('Found tweets:', tweets.length);
+      tweets.forEach(processTweet);
     }
 
-    // Create debounced version of checkForNewPosts
-    const debouncedCheck = debounce(checkForNewPosts, 300);
+    function setupObserver() {
+      console.log('Setting up observer');
+      const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          for (const node of mutation.addedNodes) {
+            if (node instanceof Element) {
+              if (node.matches('article[data-testid="tweet"], div[data-testid="cellInnerDiv"] article')) {
+                processTweet(node);
+              }
+              // Check for tweets within added node
+              const tweets = node.querySelectorAll('article[data-testid="tweet"], div[data-testid="cellInnerDiv"] article');
+              tweets.forEach(processTweet);
+            }
+          }
+        }
+      });
 
-    // Modify the scroll event listener to call checkForNewPosts
-    window.addEventListener("scroll", () => {
-      if (window.location.hostname === "x.com") {
-        debouncedCheck();
-      }
-    });
-
-    // Initial check when the page loads
-    if (window.location.hostname === "x.com") {
-      checkForNewPosts();
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+      console.log('Observer started');
     }
-  },
+
+    // Wait for document to be ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        console.log('DOM loaded');
+        processExistingTweets();
+        setupObserver();
+      });
+    } else {
+      console.log('DOM already loaded');
+      processExistingTweets();
+      setupObserver();
+    }
+  }
 });
