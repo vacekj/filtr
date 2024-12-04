@@ -4,7 +4,7 @@ import {defineConfig} from "wxt";
 export default defineConfig({
   modules: ["@wxt-dev/module-react", "@wxt-dev/auto-icons"],
   autoIcons: {
-    baseIconPath: "./assets/icon.jpg"
+    baseIconPath: "./assets/icon.png"
   },
   manifest: {
     manifest_version: 3,

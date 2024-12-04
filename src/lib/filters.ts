@@ -51,7 +51,8 @@ export async function checkAI(text: string, settings: Settings): Promise<FilterR
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: settings.MODEL || 'gpt-4o-mini',
-          prompt: `Based on this filtering criteria: "${settings.CONTENT_PROMPT}", should this tweet be hidden? Reply with just "yes" or "no".\n\nTweet: "${text}"`,
+          prompt: `Does this tweet satisfy the following user preferences: "${settings.CONTENT_PROMPT}"
+          ? Answer with a probability between 0 and 1. 0 if the tweet doesn't satisfy the preferences, 1 if it satisfies the user preferences.\n\nTweet: "${text}"`,
           stream: false
         })
       });
