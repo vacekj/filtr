@@ -1,36 +1,38 @@
 {
-	"name": "filter",
-	"description": "X.com Content Filter",
-	"private": true,
-	"version": "0.0.0",
-	"type": "module",
-	"scripts": {
-		"dev": "wxt",
-		"dev:firefox": "wxt -b firefox",
-		"build": "wxt build",
-		"build:firefox": "wxt build -b firefox",
-		"zip": "wxt zip",
-		"zip:firefox": "wxt zip -b firefox",
-		"compile": "tsc --noEmit",
-		"postinstall": "wxt prepare"
-	},
-	"dependencies": {
-		"@chakra-ui/icons": "^2.2.4",
-		"@chakra-ui/react": "^2",
-		"@emotion/react": "^11.13.5",
-		"@emotion/styled": "^11.13.5",
-		"es-toolkit": "^1.27.0",
-		"framer-motion": "^11.12.0",
-		"react": "^18.3.1",
-		"react-dom": "^18.3.1"
-	},
-	"devDependencies": {
-		"@types/chrome": "^0.0.287",
-		"@types/react": "^18.3.3",
-		"@types/react-dom": "^18.3.0",
-		"@wxt-dev/auto-icons": "^1.0.2",
-		"@wxt-dev/module-react": "^1.1.0",
-		"typescript": "^5.5.4",
-		"wxt": "^0.19.1"
-	}
+  "name": "filtr",
+  "description": "Local WebGPU feed filtering for X",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun scripts/dev.ts",
+    "build": "bun scripts/build.ts",
+    "zip": "bun scripts/zip.ts",
+    "typecheck": "tsgo --noEmit",
+    "compile": "tsgo --noEmit",
+    "test": "bun test",
+    "model:download": "bun scripts/download-model.ts",
+    "lab": "bun scripts/lab.ts",
+    "format": "biome format --write ."
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.3.1",
+    "onnxruntime-web": "1.30.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.3.5",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@typescript/native-preview": "^7.0.0-dev.20260707.2",
+    "@types/bun": "1.4.3",
+    "@happy-dom/global-registrator": "21.0.3",
+    "@biomejs/biome": "2.5.15"
+  },
+  "packageManager": "bun@1.4.3",
+  "engines": {
+    "bun": ">=1.4.0"
+  }
 }

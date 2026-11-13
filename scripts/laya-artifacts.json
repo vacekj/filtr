@@ -1,0 +1,26 @@
+{
+  "model": "onnx-community/laya-multilingual-ONNX",
+  "revision": "46b77bbf5642fec5f14e540570228a8cbe8ab81f",
+  "files": {
+    "config.json": {
+      "bytes": 2859,
+      "sha256": "cc32109b1fded91ec6734127ffb1827f80cdcf8ffdd4eeda75a1b0f4d3687dcc"
+    },
+    "tokenizer.json": {
+      "bytes": 34363188,
+      "sha256": "609d8f4c067cd3950f88594c5a802616cea245823836ef5848ee4fc40aab5b6f"
+    },
+    "tokenizer_config.json": {
+      "bytes": 502,
+      "sha256": "424b69444bf7b5809dc2cd2e36d0bd71b8055124dd24274d6db3c655d38205e7"
+    },
+    "onnx/model_fp16.onnx": {
+      "bytes": 3572287,
+      "sha256": "81f641e21289ddb2cd8ac774c1cddebfdb0fa7e4b183e49ad476d2faee46d98a"
+    },
+    "onnx/model_fp16.onnx_data": {
+      "bytes": 643817472,
+      "sha256": "3c9eb52f5f795f76d7a681197228131fac7e92c3e5a4c90b68ec4065699ee4cf"
+    }
+  }
+}

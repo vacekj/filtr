@@ -24,3 +24,6 @@ web-ext.config.ts
 *.njsproj
 *.sln
 *.sw?
+public/models/
+public/ort/
+artifacts/

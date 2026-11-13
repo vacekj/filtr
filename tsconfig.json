@@ -1,7 +1,20 @@
 {
-	"extends": "./.wxt/tsconfig.json",
-	"compilerOptions": {
-		"allowImportingTsExtensions": true,
-		"jsx": "react-jsx"
-	}
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "target": "ESNext",
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "types": ["bun", "chrome"],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["src", "entrypoints", "scripts", "tests", "lab"],
+  "exclude": ["node_modules", ".output"]
 }

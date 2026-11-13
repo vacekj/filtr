@@ -1,0 +1,60 @@
+body {
+  font: 15px system-ui;
+  margin: 30px auto;
+  max-width: 1000px;
+  color: #182321;
+  background: #f6f7f5;
+}
+main {
+  padding: 20px;
+}
+textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  padding: 12px;
+  margin: 8px 0 18px;
+}
+button {
+  padding: 10px 18px;
+  margin: 0 8px 20px 0;
+  cursor: pointer;
+}
+label {
+  display: block;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+th,
+td {
+  text-align: left;
+  border-bottom: 1px solid #ccd5d0;
+  padding: 8px;
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.demo {
+  max-width: 600px;
+  margin: auto;
+}
+.demo article {
+  box-sizing: border-box;
+  height: 300px;
+  padding: 28px;
+  border: 1px solid #cbd7cd;
+  background: white;
+  border-radius: 10px;
+  margin: 12px 0;
+  font-size: 18px;
+}
+.demo a {
+  display: block;
+  color: #637365;
+  margin-bottom: 24px;
+  font-size: 13px;
+}
